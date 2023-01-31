@@ -93,106 +93,60 @@
 이 플레이북을 작성하고 나서야 딥러닝 실무자의 워크플로에서 얼마나 많은 흥미로운 연구 질문과 소홀히 다뤄진 연구 질문을 찾을 수 있는지 완전히 알게 되었습니다.
 
 
-## Guide for starting a new project
+## 새 프로젝트를 위한 가이드
 
-Many of the decisions we make over the course of tuning can be made once at the
-beginning of a project and only occasionally revisited when circumstances
-change.
+튜닝 과정에서 내리는 많은 결정은 프로젝트 시작 시 한 번만 내리고 상황이 바뀔 때만 가끔 재검토할 수 있습니다.
 
-Our guidance below makes the following assumptions:
+아래 소개하는 이 지침은 다음과 같은 가정을 전제로 합니다:
+- 문제 공식화, 데이터 정리 등 필수적인 작업은 이미 충분히 수행되었으므로 모델 아키텍처 및 학습 구성에 시간을 할애하는 것이 합리적입니다.
+- 학습 및 평가를 수행하는 파이프라인이 이미 설정되어 있으며, 관심 있는 다양한 모델에 대한 학습 및 예측 작업을 쉽게 실행할 수 있습니다.
+- 적절한 메트릭이 선택되고 구현되었습니다. 이러한 지표는 배포된 환경에서 측정될 수 있는 것을 최대한 대표할 수 있어야 합니다.
 
--   Enough of the essential work of problem formulation, data cleaning, etc. has
-    already been done that spending time on the model architecture and training
-    configuration makes sense.
--   There is already a pipeline set up that does training and evaluation, and it
-    is easy to execute training and prediction jobs for various models of
-    interest.
--   The appropriate metrics have been selected and implemented. These should be
-    as representative as possible of what would be measured in the deployed
-    environment.
 
-### Choosing the model architecture
+### 모델 구조 선정하기
 
-***Summary:*** *When starting a new project, try to reuse a model that already
-works.*
 
--   Choose a well established, commonly used model architecture to get working
-    first. It is always possible to build a custom model later.
--   Model architectures typically have various hyperparameters that determine
-    the model's size and other details (e.g. number of layers, layer width, type
-    of activation function).
-    -   Thus, choosing the architecture really means choosing a family of
-        different models (one for each setting of the model hyperparameters).
-    -   We will consider the problem of choosing the model hyperparameters in
-        [Choosing the initial configuration](#choosing-the-initial-configuration)
-        and
-        [A scientific approach to improving model performance](#a-scientific-approach-to-improving-model-performance).
--   When possible, try to find a paper that tackles something as close as
-    possible to the problem at hand and reproduce that model as a starting
-    point.
+***요약:*** 새 프로젝트를 시작할 때는 이미 작동 중인 모델을 재사용하세요.
 
-### Choosing the optimizer
+- 잘 확립되고 일반적으로 사용되는 모델 아키텍처를 선택하여 먼저 작업을 시작하세요. 나중에 언제든지 사용자 지정 모델을 구축할 수 있습니다.
+- 모델 아키텍처에는 일반적으로 모델의 크기와 기타 세부 사항(예: 레이어 수, 레이어 너비, 활성화 함수 유형)을 결정하는 다양한 하이퍼 파라미터가 있습니다.
+  - 따라서 아키텍처를 선택한다는 것은 실제로 다양한 모델 제품군(모델 하이퍼 파라미터의 각 설정에 대해 하나씩)을 선택한다는 것을 의미합니다.
+  - [초기 구성 선택하기](#초기-구성-선택하기) 및 [모델 성능 향상을 위한 과학적 접근 방식](#모델-성능-향상을-위한-과학적-접근-방식)에서 모델 하이퍼 파라미터를 선택하는 문제를 고려할 것입니다.
+- 가능하면 현재 당면한 문제와 최대한 유사한 문제를 다룬 논문을 찾아서 그 모델을 출발점으로 삼아 재현해 보세요.
 
-***Summary:*** *Start with the most popular optimizer for the type of problem at
-hand.*
 
--   No optimizer is the "best" across all types of machine learning problems and
-    model architectures. Even just
-    [comparing the performance of optimizers is a difficult task](https://arxiv.org/abs/1910.05446).
-    🤖
--   We recommend sticking with well-established, popular optimizers, especially
-    when starting a new project.
-    -   Ideally, choose the most popular optimizer used for the same type of
-        problem.
--   Be prepared to give attention to **\*****all****\*** hyperparameters of the
-    chosen optimizer.
-    -   Optimizers with more hyperparameters may require more tuning effort to
-        find the best configuration.
-    -   This is particularly relevant in the beginning stages of a project when
-        we are trying to find the best values of various other hyperparameters
-        (e.g. architecture hyperparameters) while treating optimizer
-        hyperparameters as
-        [nuisance parameters](#identifying-scientific-nuisance-and-fixed-hyperparameters).
-    -   It may be preferable to start with a simpler optimizer (e.g. SGD with
-        fixed momentum or Adam with fixed $\epsilon$, $\beta_{1}$, and
-        $\beta_{2}$) in the initial stages of the project and switch to a more
-        general optimizer later.
--   Well-established optimizers that we like include (but are not limited to):
-    -   [SGD with momentum](#what-are-the-update-rules-for-all-the-popular-optimization-algorithms)
-        (we like the Nesterov variant)
-    -   [Adam and NAdam](#what-are-the-update-rules-for-all-the-popular-optimization-algorithms),
-        which are more general than SGD with momentum. Note that Adam has 4
-        tunable hyperparameters
-        [and they can all matter](https://arxiv.org/abs/1910.05446)!
-        -   See
-            [How should Adam's hyperparameters be tuned?](#how-should-adams-hyperparameters-be-tuned)
+### 옵티마이저 선택하기
 
-### Choosing the batch size
+***요약***: 당면한 문제 유형에 가장 많이 사용되는 최적화 도구부터 시작하세요.
 
-***Summary:*** *The batch size governs the training speed and shouldn't be used
-to directly tune the validation set performance. Often, the ideal batch size
-will be the largest batch size supported by the available hardware.*
+- 모든 유형의 머신 러닝 문제와 모델 아키텍처에서 '최고'인 최적화 도구는 없습니다. [최적화 도구의 성능을 비교하는 것조차도 어려운 작업](https://arxiv.org/abs/1910.05446)입니다. 🤖
+- 특히 새로운 프로젝트를 시작할 때는 잘 정립되고 인기 있는 최적화 도구를 사용하는 것이 좋습니다.
+  - 같은 유형의 문제에 가장 많이 사용되는 최적화 도구를 선택하는 것이 가장 이상적입니다.
+- 선택한 옵티마이저의 **\*****모든****\*** 하이퍼 파라미터에 주의를 기울일 준비를 하세요.
+  - 하이퍼파라미터가 많은 최적화 도구는 최적의 구성을 찾기 위해 더 많은 튜닝 작업이 필요할 수 있습니다.
+  - 이는 최적화 도구의 하이퍼 파라미터를 [귀찮은 파라미터](#identifying-scientific-nuisance-and-fixed-hyperparameters)로 취급하면서 다양한 다른 하이퍼 파라미터(예: 아키텍처 하이퍼 파라미터)의 최적의 값을 찾으려는 프로젝트의 초기 단계에서 특히 중요합니다.
+  - 더 간단한 옵티마이저(예: 모멘텀이 고정된 SGD 또는 고정된 $\epsilon$, $\beta_{1}$, and $\beta_{2}$의 Adam)로 시작하는 것이 바람직할 수 있습니다. 
 
--   The batch size is a key factor in determining the *training time* and
-    *computing resource consumption*.
--   Increasing the batch size will often reduce the training time. This can be
-    highly beneficial because it, e.g.:
-    -   Allows hyperparameters to be tuned more thoroughly within a fixed time
-        interval, potentially resulting in a better final model.
-    -   Reduces the latency of the development cycle, allowing new ideas to be
-        tested more frequently.
--   Increasing the batch size may either decrease, increase, or not change the
-    resource consumption.
--   The batch size should *not be* treated as a tunable hyperparameter for
-    validation set performance.
-    -   As long as all hyperparameters are well-tuned (especially the learning
-        rate and regularization hyperparameters) and the number of training
-        steps is sufficient, the same final performance should be attainable
-        using any batch size (see
-        [Shallue et al. 2018](https://arxiv.org/abs/1811.03600)).
-    -   Please see [Why shouldn't the batch size be tuned to directly improve
-        validation set
-        performance?](#why-shouldnt-the-batch-size-be-tuned-to-directly-improve-validation-set-performance)
+- 우리가 선호하는 잘 정립된 옵티마이저는 다음과 같습니다(이에 국한되지 않음):
+  - [모멘텀이 있는 SGD](#what-are-the-update-rules-for-all-the-popular-optimization-algorithms)(우리는 Nesterov 변형을 좋아합니다)
+  - 모멘텀이 있는 SGD보다 더 일반적인 [Adam과 NAdam](#what-are-the-update-rules-for-all-the-popular-optimization-algorithms). 
+  아담은 조정 가능한 하이퍼파라미터가 4개이며 [모두 중요할 수 있다는 점](https://arxiv.org/abs/1910.05446)에 유의하세요!
+  - [아담의 하이퍼파라미터는 어떻게 조정해야 하나요?](#how-should-adams-hyperparameters-be-tuned) 를 살펴보세요.
+
+
+### 배치 크기 선택하기
+
+***요약:*** 배치 크기는 학습 속도에 영향을 미치며 유효성 검사 세트 성능을 직접 조정하는 데 사용해서는 안 됩니다. 
+이상적인 배치 크기는 사용 가능한 하드웨어에서 지원하는 가장 큰 배치 크기인 경우가 많습니다.
+
+- 배치 크기는 *훈련 시간*과 *컴퓨팅 리소스 소비*를 결정하는 핵심 요소입니다.
+- 배치 크기를 늘리면 훈련 시간이 단축되는 경우가 많습니다. 이는 다음과 같은 이유로 매우 유용할 수 있습니다:
+  - 정해진 시간 간격 내에 하이퍼 파라미터를 보다 철저하게 튜닝할 수 있어 잠재적으로 더 나은 최종 모델을 만들 수 있습니다.
+  - 개발 주기의 지연 시간을 줄여 새로운 아이디어를 더 자주 테스트할 수 있습니다.
+- 배치 크기를 늘리면 리소스 소비가 감소하거나 증가하거나 변경되지 않을 수 있습니다.
+- 배치 크기를 유효성 검사 세트 성능에 대한 조정 가능한 하이퍼 파라미터로 *취급해서는 안 됩니다*.
+  - 모든 하이퍼파라미터(특히 학습률과 정규화 하이퍼파라미터)가 잘 조정되고 훈련 단계의 수가 충분하다면 어떤 배치 크기로도 동일한 최종 성능을 얻을 수 있어야 합니다([Shallue et al. 2018](https://arxiv.org/abs/1811.03600) 참조).
+  - [검증 세트 성능을 직접 개선하기 위해 배치 크기를 조정해서는 안 되는 이유](#why-shouldnt-the-batch-size-be-tuned-to-directly-improve-validation-set-performance)를 참조하세요.
 
 #### Determining the feasible batch sizes and estimating training throughput
 
