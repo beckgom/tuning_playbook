@@ -148,179 +148,118 @@
   - 모든 하이퍼파라미터(특히 학습률과 정규화 하이퍼파라미터)가 잘 조정되고 훈련 단계의 수가 충분하다면 어떤 배치 크기로도 동일한 최종 성능을 얻을 수 있어야 합니다([Shallue et al. 2018](https://arxiv.org/abs/1811.03600) 참조).
   - [검증 세트 성능을 직접 개선하기 위해 배치 크기를 조정해서는 안 되는 이유](#why-shouldnt-the-batch-size-be-tuned-to-directly-improve-validation-set-performance)를 참조하세요.
 
-#### Determining the feasible batch sizes and estimating training throughput
+#### 가능한 배치 크기 결정하기와 학습 처리량 예측하기
 
 
 <details><summary><em>[Click to expand]</em></summary>
 
 <br>
 
--   For a given model and optimizer, there will typically be a range of batch
-    sizes supported by the available hardware. The limiting factor is usually
-    accelerator memory.
--   Unfortunately, it can be difficult to calculate which batch sizes will fit
-    in memory without running, or at least compiling, the full training program.
--   The easiest solution is usually to run training jobs at different batch
-    sizes (e.g. increasing powers of 2) for a small number of steps until one of
-    the jobs exceeds the available memory.
--   For each batch size, we should train for long enough to get a reliable
-    estimate of the *training throughput*
+-   특정 모델 및 옵티마이저의 경우 일반적으로 사용 가능한 하드웨어에서 지원하는 배치 크기 범위가 있습니다. 제한 요소는 일반적으로 가속기 메모리입니다.
+-   안타깝게도 전체 훈련 프로그램을 실행하거나 최소한 컴파일하지 않고는 메모리에 적합한 배치 크기를 계산하기 어려울 수 있습니다.
+-   가장 쉬운 해결책은 일반적으로 작업 중 하나가 사용 가능한 메모리를 초과할 때까지 적은 수의 단계에 대해 다양한 배치 크기(예: 2의 거듭제곱 증가)로 훈련 작업을 실행하는 것입니다.
+-   각 배치 크기에 대해 *학습 처리량*의 신뢰할 수 있는 추정치를 얻을 수 있을 만큼 충분히 오래 훈련해야 합니다.
 
-<p align="center">training throughput = (# examples processed per second)</p>
+<p align="center">학습 처리량 = (초당 처리 샘플 수)</p>
 
-<p align="center">or, equivalently, the <em>time per step</em>.</p>
+<p align="center">또는, 동등하게, <em>스텝당 시간</em>.</p>
 
-<p align="center">time per step = (batch size) / (training throughput)</p>
+<p align="center">스텝당 시간 = (배치 크기) / (학습 처리량)</p>
 
--   When the accelerators aren't yet saturated, if the batch size doubles, the
-    training throughput should also double (or at least nearly double).
-    Equivalently, the time per step should be constant (or at least nearly
-    constant) as the batch size increases.
--   If this is not the case then the training pipeline has a bottleneck such as
-    I/O or synchronization between compute nodes. This may be worth diagnosing
-    and correcting before proceeding.
--   If the training throughput increases only up to some maximum batch size,
-    then we should only consider batch sizes up to that maximum batch size, even
-    if a larger batch size is supported by the hardware.
-    -   All benefits of using a larger batch size assume the training throughput
-        increases. If it doesn't, fix the bottleneck or use the smaller batch
-        size.
-    -   **Gradient accumulation** simulates a larger batch size than the
-        hardware can support and therefore does not provide any throughput
-        benefits. It should generally be avoided in applied work.
--   These steps may need to be repeated every time the model or optimizer is
-    changed (e.g. a different model architecture may allow a larger batch size
-    to fit in memory).
+-   가속기가 아직 포화 상태가 아닌 경우 배치 크기가 두 배가 되면 학습 처리량도 두 배(또는 적어도 거의 두 배)가 되어야 합니다. 
+    마찬가지로, 배치 크기가 증가함에 따라 단계당 시간도 일정하거나 적어도 거의 일정해야 합니다.
+-   그렇지 않다면 학습 파이프라인에 컴퓨팅 노드 간의 I/O 또는 동기화와 같은 병목 현상이 있는 것입니다. 
+    계속 진행하기 전에 이를 진단하고 수정하는 것이 좋습니다.
+-   학습 처리량이 특정 최대 배치 크기까지만 증가하는 경우, 하드웨어에서 더 큰 배치 크기를 지원하더라도 해당 최대 배치 크기까지만 배치 크기를 고려해야 합니다.
+    -   더 큰 배치 크기를 사용할 때의 모든 이점은 학습 처리량이 증가한다고 가정합니다. 그렇지 않은 경우 병목 현상을 해결하거나 더 작은 배치 크기를 사용하세요.
+    -   **그라데이션 누적**은 하드웨어가 지원할 수 있는 것보다 더 큰 배치 크기를 시뮬레이션하므로 처리량 이점을 제공하지 않습니다. 일반적으로 적용 작업에서는 피해야 합니다.
+-   모델 또는 옵티마이저가 변경될 때마다 이러한 단계를 반복해야 할 수 있습니다(예: 모델 아키텍처가 달라지면 메모리에 더 큰 배치 크기를 사용할 수 있음).
 
 </details>
 
-#### Choosing the batch size to minimize training time
+#### 학습 시간을 최소화하기 위한 배치 크기 선택하기
 
 <details><summary><em>[Click to expand]</em></summary>
 
 <br>
 
 
-<p align="center">Training time = (time per step) x (total number of steps)</p>
+<p align="center">학습 시간 = (스텝당 시간) x (총 스텝 수)</p>
 
--   We can often consider the time per step to be approximately constant for all
-    feasible batch sizes. This is true when there is no overhead from parallel
-    computations and all training bottlenecks have been diagnosed and corrected
-    (see the
-    [previous section](#determining-the-feasible-batch-sizes-and-estimating-training-throughput)
-    for how to identify training bottlenecks). In practice, there is usually at
-    least some overhead from increasing the batch size.
--   As the batch size increases, the total number of steps needed to reach a
-    fixed performance goal typically decreases (provided all relevant
-    hyperparameters are re-tuned when the batch size is changed;
-    [Shallue et al. 2018](https://arxiv.org/abs/1811.03600)).
-    -   E.g. Doubling the batch size might halve the total number of steps
-        required. This is called **perfect scaling**.
-    -   Perfect scaling holds for all batch sizes up to a critical batch size,
-        beyond which one achieves diminishing returns.
-    -   Eventually, increasing the batch size no longer reduces the number of
-        training steps (but never increases it).
--   Therefore, the batch size that minimizes training time is usually the
-    largest batch size that still provides a reduction in the number of training
-    steps required.
-    -   This batch size depends on the dataset, model, and optimizer, and it is
-        an open problem how to calculate it other than finding it experimentally
-        for every new problem. 🤖
-    -   When comparing batch sizes, beware the distinction between an example
-        budget/[epoch](https://developers.google.com/machine-learning/glossary#epoch)
-        budget (running all experiments while fixing the number of training
-        example presentations) and a step budget (running all experiments with
-        the number of training steps fixed).
-        -   Comparing batch sizes with an epoch budget only probes the perfect
-            scaling regime, even when larger batch sizes might still provide a
-            meaningful speedup by reducing the number of training steps
-            required.
-    -   Often, the largest batch size supported by the available hardware will
-        be smaller than the critical batch size. Therefore, a good rule of thumb
-        (without running any experiments) is to use the largest batch size
-        possible.
--   There is no point in using a larger batch size if it ends up increasing the
-    training time.
+-   우리는 종종 가능한 모든 배치 크기에 대해 단계당 시간이 거의 일정하다고 생각할 수 있습니다. 
+    이는 병렬 계산으로 인한 오버헤드가 없고 모든 훈련 병목 현상이 진단 및 수정된 경우에 해당됩니다
+    (훈련 병목 현상을 식별하는 방법은 [이전 섹션](#가능한-배치-크기-결정하기와-학습-처리량-예측하기) 참조). 
+    실제로는 일반적으로 배치 크기를 늘리면 적어도 약간의 오버헤드가 발생합니다.
+-   배치 크기가 증가하면 일반적으로 고정 성능 목표에 도달하는 데 필요한 총 단계 수가 감소합니다
+    (배치 크기가 변경될 때 모든 관련 하이퍼파라미터를 다시 조정하는 경우, [Shallue et al. 2018](https://arxiv.org/abs/1811.03600)).
+    -   예: 배치 크기를 두 배로 늘리면 필요한 총 단계 수가 절반으로 줄어들 수 있습니다. 이를 **퍼펙트 스케일링**이라고 합니다.
+    -   퍼펙트 스케일링은 임계 배치 크기까지 모든 배치 크기에 대해 유지되며, 그 이후에는 수익이 감소합니다.
+    -   결국 배치 크기를 늘려도 더 이상 훈련 단계 수가 줄어들지 않습니다(절대 늘어나지 않음).
+-   따라서 훈련 시간을 최소화하는 배치 크기는 일반적으로 필요한 훈련 단계 수를 줄일 수 있는 가장 큰 배치 크기입니다.
+    -   이 배치 크기는 데이터 세트, 모델 및 최적화 도구에 따라 달라지며, 새로운 문제마다 실험적으로 찾는 것 외에 이를 계산하는 방법은 아직 해결되지 않은 문제입니다. 🤖
+    -   배치 크기를 비교할 때는 예제 예산/[epoch](https://developers.google.com/machine-learning/glossary#epoch) 
+        예산(훈련 예제 제시 수를 고정하면서 모든 실험을 실행)과 단계 예산(훈련 단계 수를 고정하면서 모든 실험을 실행)을 구분하는 데 주의하세요.
+        -   배치 크기를 에포크 예산과 비교하는 것은 배치 크기가 클수록 필요한 트레이닝 단계 수를 줄여 의미 있는 속도 향상을 제공할 수 있는 경우에도 완벽한 확장 체제를 조사하는 것에 불과합니다.
+    -   사용 가능한 하드웨어에서 지원하는 최대 배치 크기는 임계 배치 크기보다 작은 경우가 많습니다. 따라서 (실험을 실행하지 않고) 경험상 가능한 가장 큰 배치 크기를 사용하는 것이 좋습니다.
+-   학습 시간이 길어진다면 더 큰 배치 크기를 사용하는 것은 의미가 없습니다.
 
 </details>
 
-#### Choosing the batch size to minimize resource consumption
+#### 리소스 소비를 최소화 하기 위한 배치 크기 선택하기
 
 <details><summary><em>[Click to expand]</em></summary>
 
 <br>
 
+-   배치 크기를 늘리는 것과 관련된 리소스 비용에는 두 가지 유형이 있습니다:
+    1.  *선행 비용*(예: 새로운 하드웨어를 구매하거나 트레이닝 파이프라인을 재작성하여 멀티 GPU/멀티 CPU 트레이닝을 구현하는 비용).
+    2.  *사용 비용*: 팀의 리소스 예산에 대한 청구, 클라우드 제공업체의 청구, 전기/유지보수 비용.
+-   배치 규모를 늘리는 데 상당한 초기 비용이 드는 경우, 프로젝트가 성숙하고 비용 대비 편익을 평가하기 쉬워질 때까지 배치 규모를 늘리는 것을 연기하는 것이 더 나을 수 있습니다. 
+    멀티 호스트 병렬 트레이닝 프로그램을 구현하면 [버그](#considerations-for-multi-host-pipelines)와 
+    [미묘한 문제](#batch-normalization-implementation-details)가 발생할 수 있으므로 더 간단한 파이프라인으로 시작하는 것이 좋습니다. 
+    (반면, 많은 튜닝 실험이 필요한 프로세스 초기에는 훈련 시간을 크게 단축하는 것이 매우 유용할 수 있습니다).
+-   저희는 총 사용 비용(여러 종류의 비용이 포함될 수 있음)을 '리소스 소비량'이라고 합니다. 
+    리소스 소비는 다음과 같은 구성 요소로 나눌 수 있습니다:
 
--   There are two types of resource costs associated with increasing the batch
-    size:
-    1.  *Upfront costs*, e.g. purchasing new hardware or rewriting the training
-        pipeline to implement multi-GPU / multi-TPU training.
-    2.  *Usage costs*, e.g. billing against the team's resource budgets, billing
-        from a cloud provider, electricity / maintenance costs.
--   If there are significant upfront costs to increasing the batch size, it
-    might be better to defer increasing the batch size until the project has
-    matured and it is easier to assess the cost-benefit tradeoff. Implementing
-    multi-host parallel training programs can introduce
-    [bugs](#considerations-for-multi-host-pipelines) and
-    [subtle issues](#batch-normalization-implementation-details) so it is
-    probably better to start off with a simpler pipeline anyway. (On the other
-    hand, a large speedup in training time might be very beneficial early in the
-    process when a lot of tuning experiments are needed).
--   We refer to the total usage cost (which may include multiple different kinds
-    of costs) as the "resource consumption". We can break down the resource
-    consumption into the following components:
 
-<p align="center">Resource consumption = (resource consumption per step) x (total number of steps)</p>
+<p align="center">리소스 소비 = (스텝당 리소스 소비) x (총 스텝 수)</p>
 
--   Increasing the batch size usually allows us to
-    [reduce the total number of steps](#choosing-the-batch-size-to-minimize-training-time).
-    Whether the resource consumption increases or decreases will depend on how
-    the consumption per step changes.
-    -   Increasing the batch size might *decrease* the resource consumption. For
-        example, if each step with the larger batch size can be run on the same
-        hardware as the smaller batch size (with only a small increase in time
-        per step), then any increase in the resource consumption per step might
-        be outweighed by the decrease in the number of steps.
-    -   Increasing the batch size might *not change* the resource consumption.
-        For example, if doubling the batch size halves the number of steps
-        required and doubles the number of GPUs used, the total consumption (in
-        terms of GPU-hours) will not change.
-    -   Increasing the batch size might *increase* the resource consumption. For
-        example, if increasing the batch size requires upgraded hardware, the
-        increase in consumption per step might outweigh the reduction in the
-        number of steps.
+-   배치 크기를 늘리면 일반적으로 [총 단계 수를 줄일 수 있습니다](#choosing-the-batch-size-to-minimize-training-time). 
+    리소스 사용량의 증가 또는 감소 여부는 단계당 사용량이 어떻게 변하는지에 따라 달라집니다.
+    -   배치 크기를 늘리면 리소스 소비가 감소할 수 있습니다. 
+        예를 들어 배치 크기가 큰 각 단계를 배치 크기가 작은 단계와 동일한 하드웨어에서 실행할 수 있는 경우(단계당 시간이 약간만 증가), 
+        단계당 리소스 소비량의 증가가 단계 수의 감소보다 더 클 수 있습니다.
+    -   배치 크기를 늘려도 리소스 소비량은 변하지 않을 수 있습니다. 
+        예를 들어 배치 크기를 두 배로 늘리면 필요한 단계 수가 절반으로 줄어들고 사용되는 
+        GPU 수가 두 배로 늘어나도 총 소비량(GPU 시간 기준)은 변하지 않습니다.
+    -   배치 크기를 늘리면 리소스 소비가 증가할 수 있습니다. 
+        예를 들어 배치 크기를 늘리려면 하드웨어를 업그레이드해야 하는 경우 단계당 소비량 증가가 단계 수의 감소보다 클 수 있습니다.
 
 </details>
 
-#### Changing the batch size requires re-tuning most hyperparameters
+#### 배치 크기 변경은 많은 하이퍼 파라미터의 재조정을 요구한다
 
 <details><summary><em>[Click to expand]</em></summary>
 
 <br>
 
-
--   The optimal values of most hyperparameters are sensitive to the batch size.
-    Therefore, changing the batch size typically requires starting the tuning
-    process all over again.
--   The hyperparameters that interact most strongly with the batch size, and therefore are most important to tune separately for each batch size, are the optimizer hyperparameters (e.g. learning rate, momentum) and the regularization hyperparameters.
--   Keep this in mind when choosing the batch size at the start of a project. If
-    you need to switch to a different batch size later on, it might be
-    difficult, time consuming, and expensive to re-tune everything for the new
-    batch size.
+-   대부분의 하이퍼 파라미터의 최적값은 배치 크기에 민감합니다. 따라서 배치 크기를 변경하려면 일반적으로 튜닝 프로세스를 처음부터 다시 시작해야 합니다.
+-   배치 크기와 가장 강하게 상호 작용하기 때문에 각 배치 크기에 대해 개별적으로 조정하는 것이 가장 중요한 하이퍼 파라미터는 
+    Optimizer 하이퍼 파라미터(예: 학습 속도, 모멘텀)와 정규화 하이퍼 파라미터입니다.
+-   프로젝트를 시작할 때 배치 크기를 선택할 때 이 점을 염두에 두세요. 
+    나중에 다른 배치 크기로 전환해야 하는 경우, 새로운 배치 크기에 맞게 모든 것을 
+    다시 조정하는 것이 어렵고 시간이 오래 걸리며 비용이 많이 들 수 있습니다.
 
 </details>
 
-#### How batch norm interacts with the batch size
+#### 배치 정규화가 배치 크기와 상호 작용하는 방식
 
 <details><summary><em>[Click to expand]</em></summary>
 
 <br>
 
-
--   Batch norm is complicated and, in general, should use a different batch size
-    than the gradient computation to compute statistics. See the
-    [batch norm section](#batch-normalization-implementation-details) for a
-    detailed discussion.
+-   배치 정규화는 복잡하며 일반적으로 통계를 계산할 때 기울기 계산과는 다른 배치 크기를 사용해야 합니다. 
+    자세한 내용은 [배치 정규화 섹션](#batch-normalization-implementation-details)을 참조하세요.
 
 </details>
 
